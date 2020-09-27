@@ -1,37 +1,39 @@
-require "csv"
+# frozen_string_literal: true
+
+require 'csv'
 require 'google/apis/civicinfo_v2'
 require 'erb'
 
 def clean_zipcode(zipcode)
-  zipcode.to_s.rjust(5,"0")[0..4]
+  zipcode.to_s.rjust(5, '0')[0..4]
 end
 
 def legislators_by_zipcode(zipcode)
   civic_info = Google::Apis::CivicinfoV2::CivicInfoService.new
   civic_info.key = 'AIzaSyClRzDqDh5MsXwnCWi0kOiiBivP6JsSyBw'
-
+  
   begin
     civic_info.representative_info_by_address(
       address: zipcode,
       levels: 'country',
-      roles: ['legislatorUpperBody', 'legislatorLowerBody']
+      roles: %w[legislatorUpperBody legislatorLowerBody]
     ).officials
-  rescue
-    "You can find your representatives by visiting www.commoncause.org/take-action/find-elected-officials"
+  rescue StandardError
+    'You can find your representatives by visiting www.commoncause.org/take-action/find-elected-officials'
   end
 end
 
 def clean_phone_number(phone_number)
   digits_only = phone_number.scan(/\d/).join('')
   if digits_only.size == 10
-    digits_only 
+    digits_only
   elsif digits_only.size == 11 && digits_only[0] == '1'
     digits_only.slice(1..9)
   end
 end
 
-def save_thank_you_letter(id,form_letter)
-  Dir.mkdir("output") unless Dir.exist? "output"
+def save_thank_you_letter(id, form_letter)
+  Dir.mkdir('output') unless Dir.exist? 'output'
 
   filename = "output/thanks_#{id}.html"
 
@@ -41,21 +43,20 @@ def save_thank_you_letter(id,form_letter)
 end
 
 def registration_date_STR_to_DT(reg_date)
-  DateTime.strptime(reg_date, "%m/%d/%y %H:%M")
+  DateTime.strptime(reg_date, '%m/%d/%y %H:%M')
 end
 
 def count_occurrences_of(array)
-  array.reduce(Hash.new(0)) do |collector, item|
+  array.each_with_object(Hash.new(0)) do |item, collector|
     collector[item] += 1
-    collector
   end
 end
 
-puts "EventManager Initialized!"
+puts 'EventManager Initialized!'
 
-contents = CSV.open "event_attendees.csv", headers: true, header_converters: :symbol
+contents = CSV.open 'event_attendees.csv', headers: true, header_converters: :symbol
 
-template_letter = File.read "form_letter.erb"
+template_letter = File.read 'form_letter.erb'
 erb_template = ERB.new template_letter
 
 phone_numbers = []
@@ -71,12 +72,13 @@ contents.each do |row|
   legislators = legislators_by_zipcode(zipcode)
   registration_date = registration_date_STR_to_DT(row[:regdate])
   registration_hours.push(registration_date.hour)
-  registration_days.push(registration_date.strftime("%A"))
+  registration_days.push(registration_date.strftime('%A'))
 
   form_letter = erb_template.result(binding)
 
   save_thank_you_letter(id, form_letter)
 end
+
 puts phone_numbers
 puts count_occurrences_of(registration_hours)
 puts count_occurrences_of(registration_days)
