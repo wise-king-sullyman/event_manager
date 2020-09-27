@@ -24,9 +24,9 @@ end
 def clean_phone_number(phone_number)
   digits_only = phone_number.scan(/\d/).join('')
   if digits_only.size == 10
-    return digits_only 
+    digits_only 
   elsif digits_only.size == 11 && digits_only[0] == '1'
-    return digits_only.slice(1..9)
+    digits_only.slice(1..9)
   end
 end
 
@@ -40,6 +40,17 @@ def save_thank_you_letter(id,form_letter)
   end
 end
 
+def registration_date_STR_to_DT(reg_date)
+  DateTime.strptime(reg_date, "%m/%d/%y %H:%M")
+end
+
+def count_occurrences_of(array)
+  array.reduce(Hash.new(0)) do |collector, item|
+    collector[item] += 1
+    collector
+  end
+end
+
 puts "EventManager Initialized!"
 
 contents = CSV.open "event_attendees.csv", headers: true, header_converters: :symbol
@@ -47,16 +58,25 @@ contents = CSV.open "event_attendees.csv", headers: true, header_converters: :sy
 template_letter = File.read "form_letter.erb"
 erb_template = ERB.new template_letter
 
+phone_numbers = []
+registration_hours = []
+registration_days = []
+
 contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
   phone_number = clean_phone_number(row[:homephone])
+  phone_numbers.push(phone_number)
   legislators = legislators_by_zipcode(zipcode)
+  registration_date = registration_date_STR_to_DT(row[:regdate])
+  registration_hours.push(registration_date.hour)
+  registration_days.push(registration_date.strftime("%A"))
 
   form_letter = erb_template.result(binding)
 
   save_thank_you_letter(id, form_letter)
-
-  puts phone_number
 end
+puts phone_numbers
+puts count_occurrences_of(registration_hours)
+puts count_occurrences_of(registration_days)
