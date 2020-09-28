@@ -11,7 +11,7 @@ end
 def legislators_by_zipcode(zipcode)
   civic_info = Google::Apis::CivicinfoV2::CivicInfoService.new
   civic_info.key = 'AIzaSyClRzDqDh5MsXwnCWi0kOiiBivP6JsSyBw'
-  
+
   begin
     civic_info.representative_info_by_address(
       address: zipcode,
@@ -42,13 +42,35 @@ def save_thank_you_letter(id, form_letter)
   end
 end
 
-def registration_date_STR_to_DT(reg_date)
+def registration_date_string_to_datetime(reg_date)
   DateTime.strptime(reg_date, '%m/%d/%y %H:%M')
 end
 
 def count_occurrences_of(array)
   array.each_with_object(Hash.new(0)) do |item, collector|
     collector[item] += 1
+  end
+end
+
+def find_most_common(array, places)
+  sorted_and_grouped_array = []
+  sorted_array = count_occurrences_of(array).sort_by { |_key, value| value }
+  until sorted_and_grouped_array.size == places
+    local_max = sorted_array.select { |kv| kv.last == sorted_array.last.last }
+    sorted_array.pop(local_max.size)
+    sorted_and_grouped_array.push(local_max)
+  end
+  sorted_and_grouped_array
+end
+
+def print_most_common(array, places, label)
+  find_most_common(array, places).each_with_index do |place, index|
+    keys = place.map(&:first)
+    if index.zero?
+      puts "Most common #{label}: #{keys} with value #{place.flatten.last}"
+    else
+      puts "Next most common #{label}: #{keys} with value #{place.flatten.last}"
+    end
   end
 end
 
@@ -70,7 +92,7 @@ contents.each do |row|
   phone_number = clean_phone_number(row[:homephone])
   phone_numbers.push(phone_number)
   legislators = legislators_by_zipcode(zipcode)
-  registration_date = registration_date_STR_to_DT(row[:regdate])
+  registration_date = registration_date_string_to_datetime(row[:regdate])
   registration_hours.push(registration_date.hour)
   registration_days.push(registration_date.strftime('%A'))
 
@@ -79,6 +101,5 @@ contents.each do |row|
   save_thank_you_letter(id, form_letter)
 end
 
-puts phone_numbers
-puts count_occurrences_of(registration_hours)
-puts count_occurrences_of(registration_days)
+print_most_common(registration_hours, 3, 'hour/hours')
+print_most_common(registration_days, 3, 'weekday/weekdays')
